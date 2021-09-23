@@ -2415,14 +2415,6 @@ def mClean(clip, thSAD=400, chroma=True, sharp=10, rn=14, deband=0, depth=0, str
     From: https://forum.doom9.org/showthread.php?t=174804 by burfadel
     mClean spatio/temporal denoiser
 
-    v1.1 by Etienne Charland (2021-09-22):
-    - Added dynamic noise reduction strength based on Luma where dark areas get full reduction and 
-    white areas preserve more of the source. Set Strength between 0 and -200, recommended -50. A value of -50 means that out of 255, 
-    the 50 blackest values have full-reduction and the 50 whitest values are merged at a minimal strength of 50/255.
-    - Strength no longer apply to deband and sharpen, only to noise reduction.
-    - Deband was denoised and then sharpened. It has been moved to the end after sharpening.
-    - Veed is run between noise reduction and sharpening and is not affected by strength.
-
     +++ Description +++
     Typical spatial filters work by removing large variations in the image on a small scale, reducing noise but also making the image less
     sharp or temporally stable. mClean removes noise whilst retaining as much detail as possible, as well as provide optional image enhancement.
@@ -2459,9 +2451,6 @@ def mClean(clip, thSAD=400, chroma=True, sharp=10, rn=14, deband=0, depth=0, str
     +++ Strength +++
     The strength of the denoising effect can be adjusted using this parameter. It ranges from 20 percent denoising effect with strength 0, up to the
     100 percent of the denoising with strength 20. This function works by blending a scaled percentage of the original image with the processed image.
-    A value between 0 and -200 will apply dynamic noise reduction strength based on Luma, where black zones get full denoising and white areas
-    preserve the source. Specifying a value of -50 means that out of 255, the 50 blackest values have full-reduction and the 50 whitest values 
-    are merged at a minimal strength of 50/255.
 
     +++ Outbits +++
     Specifies the bits per component (bpc) for the output for processing by additional filters. It will also be the bpc that mClean will process.
@@ -2474,7 +2463,7 @@ def mClean(clip, thSAD=400, chroma=True, sharp=10, rn=14, deband=0, depth=0, str
     rn = min(max(rn, 0), 20) # Luma ReNoise strength
     deband = min(max(deband, 0), 5)  # Apply deband/veed
     depth = min(max(depth, 0), 5) # Depth enhancement
-    strength = min(max(strength, -200), 20) # Strength of denoising
+    strength = min(max(strength, 0), 20) # Strength of denoising
     bd = clip.format.bits_per_sample
     isFLOAT = clip.format.sample_type == vs.FLOAT
     icalc = False if isFLOAT else icalc
@@ -2484,9 +2473,6 @@ def mClean(clip, thSAD=400, chroma=True, sharp=10, rn=14, deband=0, depth=0, str
 
     if not isinstance(clip, vs.VideoNode) or clip.format.color_family != vs.YUV:
         raise TypeError("mClean: This is not a YUV clip!")
-
-    props = clip.get_frame(0).props
-    fullRange = '_ColorRange' in props and props['_ColorRange'] == 0
 
     if outbits is None: # Output bits, default input depth
         outbits = bd
@@ -2554,28 +2540,13 @@ def mClean(clip, thSAD=400, chroma=True, sharp=10, rn=14, deband=0, depth=0, str
     # Post clean, pre-process deband
     filt = core.std.ShufflePlanes([clean, uv], [0, 1, 2], vs.YUV)
 
+    if deband:
+        filt = filt.f3kdb.Deband(range=16, preset="high" if chroma else "luma", grainy=defH/15, grainc=defH/16 if chroma else 0, output_depth=outbits)
+        clean = core.std.ShufflePlanes(filt, [0], vs.GRAY)
+        filt = core.vcm.Veed(filt) if deband == 2 else filt
+
     # Spatial luma denoising
     clean2 = RG(clean, rgmode)
-
-    # Apply dynamic noise reduction strength based on Luma.
-    if strength <= 0:
-        cleanm = cy.std.Maximum() # Slightly widen the exclusion mask to preserve details and edges
-        if defH > 500:
-            cleanm = cleanm.std.Maximum()
-        if defH > 1200:
-            cleanm = cleanm.std.Maximum()
-        cleanm = cleanm.std.Levels((0 if fullRange else 16) - strength, 255 if fullRange else 235, 0.85, 0, 255+strength)
-        clean = core.std.MaskedMerge(clean, cy, cleanm)
-        clean2 = core.std.MaskedMerge(clean2, cy, cleanm)
-        filt = core.std.MaskedMerge(filt, c, cleanm)
-    elif strength < 20:
-        clean = core.std.Merge(c, clean, 0.2+0.04*strength)
-        clean2 = core.std.Merge(c, clean2, 0.2+0.04*strength)
-        filt = core.std.Merge(c, filt, 0.2+0.04*strength)
-
-    # Apply Veed (auto-levels would also go here)
-    if deband == 2:
-        filt = core.vcmod.Veed(filt)
 
     # Unsharp filter for spatial detail enhancement
     if sharp:
@@ -2598,11 +2569,8 @@ def mClean(clip, thSAD=400, chroma=True, sharp=10, rn=14, deband=0, depth=0, str
 
     # Combining result of luma and chroma cleaning
     output = core.std.ShufflePlanes([clean2, filt], [0, 1, 2], vs.YUV)
-    output = core.std.MergeDiff(output, core.std.MakeDiff(output.warp.AWarpSharp2(128, 3, 1, depth2, 1), output.warp.AWarpSharp2(128, 2, 1, depth, 1))) if depth else output
-
-    if deband:
-        output = output.f3kdb.Deband(range=16, preset="high" if chroma else "luma", grainy=defH/15, grainc=defH/16 if chroma else 0, output_depth=outbits)
-    return output
+    output = core.std.Merge(c, output, 0.2+0.04*strength) if strength < 20 else output
+    return core.std.MergeDiff(output, core.std.MakeDiff(output.warp.AWarpSharp2(128, 3, 1, depth2, 1), output.warp.AWarpSharp2(128, 2, 1, depth, 1))) if depth else output
 
 
 def STPressoHD(clip, limit=4, bias=20, tlimit=4, tbias=40, conv=[1]*25, thSAD=400, tr=2, back=2, rec=False, chroma=True, analyse_args=None, recalculate_args=None):
