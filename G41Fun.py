@@ -91,9 +91,6 @@ def FineSharp(clip, mode=1, sstr=2.5, cstr=None, xstr=0, lstr=1.5, pstr=1.28, ld
     if not isinstance(clip, vs.VideoNode):
         raise TypeError("FineSharp: This is not a clip!")
 
-    if clip.format.color_family == vs.COMPAT:
-        raise TypeError("FineSharp: COMPAT color family is not supported!")
-
     if cstr is None:
         cstr = spline(sstr, {0: 0, 0.5: 0.1, 1: 0.6, 2: 0.9, 2.5: 1, 3: 1.1, 3.5: 1.15, 4: 1.2, 8: 1.25, 255: 1.5})
         cstr **= 0.8 if mode > 0 else cstr
@@ -110,7 +107,7 @@ def FineSharp(clip, mode=1, sstr=2.5, cstr=None, xstr=0, lstr=1.5, pstr=1.28, ld
     if sstr < 0.01 and cstr < 0.01 and xstr < 0.01:
         return clip
 
-    tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY) if color in [vs.YUV, vs.YCOCG] else clip
+    tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY) if color in [vs.YUV] else clip
 
     if abs(mode) == 1:
         c2 = core.std.Convolution(tmp, matrix=mat1).std.Median()
@@ -136,7 +133,7 @@ def FineSharp(clip, mode=1, sstr=2.5, cstr=None, xstr=0, lstr=1.5, pstr=1.28, ld
         rpshrp = R(xyshrp, shrp, [rep])
         shrp = core.std.Merge(shrp, rpshrp, [xstr])
 
-    return core.std.ShufflePlanes([shrp, clip], [0, 1, 2], color) if color in [vs.YUV, vs.YCOCG] else shrp
+    return core.std.ShufflePlanes([shrp, clip], [0, 1, 2], color) if color in [vs.YUV] else shrp
 
 
 def psharpen(clip, strength=25, threshold=75, ssx=1, ssy=1, dw=None, dh=None):
@@ -157,9 +154,6 @@ def psharpen(clip, strength=25, threshold=75, ssx=1, ssy=1, dw=None, dh=None):
     
     if clip.format.sample_type != vs.INTEGER:
         raise TypeError("psharpen: clip must be of integer sample type")
-
-    if clip.format.color_family == vs.COMPAT:
-        raise TypeError("psharpen: COMPAT color family is not supported!")
     
     color = clip.format.color_family
     ow = clip.width
@@ -181,7 +175,7 @@ def psharpen(clip, strength=25, threshold=75, ssx=1, ssy=1, dw=None, dh=None):
     if ssx > 1 or ssy > 1:
         clip = core.resize.Spline36(clip, xss, yss)
     
-    tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY) if color in [vs.YUV, vs.YCOCG] else clip
+    tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY) if color in [vs.YUV] else clip
 
     # calculating the max and min in every 3*3 square
     maxi = core.std.Maximum(tmp)
@@ -207,14 +201,14 @@ def psharpen(clip, strength=25, threshold=75, ssx=1, ssy=1, dw=None, dh=None):
     # resizing the image to the output resolution
     # applying the new luma value to clip
     if dw != ow or dh != oh:
-        if color in [vs.YUV, vs.YCOCG]:
+        if color in [vs.YUV]:
             tmp = core.std.ShufflePlanes([tmp, clip], [0, 1, 2], color)
         return core.resize.Spline36(tmp, dw, dh)
     elif ssx > 1 or ssy > 1:
-        if color in [vs.YUV, vs.YCOCG]:
+        if color in [vs.YUV]:
             tmp = core.std.ShufflePlanes([tmp, clip], [0, 1, 2], color)
         return core.resize.Spline36(tmp, dw, dh)
-    elif color in [vs.YUV, vs.YCOCG]:
+    elif color in [vs.YUV]:
         return core.std.ShufflePlanes([tmp, clip], [0, 1, 2], color)
     else:
         return tmp
@@ -577,8 +571,6 @@ def LSFmod(clip, strength=100, Smode=None, Smethod=None, kernel=11, preblur=Fals
         raise TypeError("LSFmod: source must be the same format as clip")
     if source is not None and (source.width != clip.width or source.height != clip.height):
         raise TypeError("LSFmod: source must be the same size as clip")
-    if clip.format.color_family == vs.COMPAT:
-        raise TypeError("LSFmod: COMPAT color family is not supported!")
     
     color = clip.format.color_family
     bd = clip.format.bits_per_sample
@@ -670,7 +662,7 @@ def LSFmod(clip, strength=100, Smode=None, Smethod=None, kernel=11, preblur=Fals
     if ssx > 1 or ssy > 1:
         clip = core.resize.Spline36(clip, xss, yss)
 
-    tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY) if color in [vs.YUV, vs.YCOCG] else clip
+    tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY) if color in [vs.YUV] else clip
     pre = MinBlur(tmp) if preblur else tmp
     darklimit = core.std.Minimum(pre)
     brightlimit = core.std.Maximum(pre)
@@ -761,14 +753,14 @@ def LSFmod(clip, strength=100, Smode=None, Smethod=None, kernel=11, preblur=Fals
 
     ### OUTPUT
     if dw != ow or dh != oh:
-        if color in [vs.YUV, vs.YCOCG]:
+        if color in [vs.YUV]:
             PP2 = core.std.ShufflePlanes([PP2, clip], [0, 1, 2], color)
         PPP = core.resize.Spline36(PP2, dw, dh)
     elif ssx > 1 or ssy > 1:
-        if color in [vs.YUV, vs.YCOCG]:
+        if color in [vs.YUV]:
             PP2 = core.std.ShufflePlanes([PP2, clip], [0, 1, 2], color)
         PPP = core.resize.Spline36(PP2, dw, dh)
-    elif color in [vs.YUV, vs.YCOCG]:
+    elif color in [vs.YUV]:
         PPP = core.std.ShufflePlanes([PP2, clip], [0, 1, 2], color)
     else:
         PPP = PP2
@@ -780,13 +772,13 @@ def LSFmod(clip, strength=100, Smode=None, Smethod=None, kernel=11, preblur=Fals
         else:
             src = source
             In = csrc
-        shrpD = core.std.MakeDiff(In, PPP, [0]) if color in [vs.YUV, vs.YCOCG] else core.std.MakeDiff(In, PPP)
+        shrpD = core.std.MakeDiff(In, PPP, [0]) if color in [vs.YUV] else core.std.MakeDiff(In, PPP)
         expr4 = 'x abs y abs < x y ?' if isFLOAT else 'x {} - abs y {} - abs < x y ?'.format(mid, mid)
-        if color in [vs.YUV, vs.YCOCG]:
+        if color in [vs.YUV]:
             shrpL = core.std.Expr([R(shrpD, core.std.MakeDiff(In, src, [0]), [1, 0]), shrpD], [expr4, ''])
         else:
             shrpL = core.std.Expr([R(shrpD, core.std.MakeDiff(In, src), [1]), shrpD], [expr4])
-        return core.std.MakeDiff(In, shrpL, [0]) if color in [vs.YUV, vs.YCOCG] else core.std.MakeDiff(In, shrpL)
+        return core.std.MakeDiff(In, shrpL, [0]) if color in [vs.YUV] else core.std.MakeDiff(In, shrpL)
     else:
         return PPP
 
@@ -831,8 +823,7 @@ def SeeSaw(clip, denoised=None, NRlimit=2, NRlimit2=None, sstr=2, Slimit=None, S
 
     if not isinstance(clip, vs.VideoNode):
         raise TypeError("SeeSaw: This is not a clip!")
-    if clip.format.color_family == vs.COMPAT:
-        raise TypeError("SeeSaw: COMPAT color family is not supported!")
+
     if NRlimit2 is None:
         NRlimit2 = NRlimit + 1
     if Slimit is None:
@@ -873,14 +864,14 @@ def SeeSaw(clip, denoised=None, NRlimit=2, NRlimit2=None, sstr=2, Slimit=None, S
     
     if denoised is None:
         dnexpr = 'x {N} + y < x {N} + x {N} - y > x {N} - y ? ?'.format(N=NRL)
-        denoised = core.std.Expr([clip, core.std.Median(clip, [0])], [dnexpr, '']) if color in [vs.YUV, vs.YCOCG] else core.std.Expr([clip, core.std.Median(clip)], [dnexpr])
+        denoised = core.std.Expr([clip, core.std.Median(clip, [0])], [dnexpr, '']) if color in [vs.YUV] else core.std.Expr([clip, core.std.Median(clip)], [dnexpr])
     else:
         if not isinstance(denoised, vs.VideoNode) or denoised.format.id != clip.format.id:
             raise TypeError("SeeSaw: denoised must be the same format as clip!")
         if denoised.width != clip.width or denoised.height != clip.height:
             raise TypeError("SeeSaw: denoised must be the same size as clip!")
 
-    if color in [vs.YUV, vs.YCOCG]:
+    if color in [vs.YUV]:
         tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY)
         tmp2 = core.std.ShufflePlanes(denoised, [0], vs.GRAY) if clip != denoised else tmp
     else:
@@ -934,7 +925,7 @@ def SeeSaw(clip, denoised=None, NRlimit=2, NRlimit2=None, sstr=2, Slimit=None, S
             limitexpr = 'y {m} = x dup y {m} - abs {i} / {S} pow {i} * y {m} > 1 -1 ? * - ?'.format(m=mid, S=SLIM, i=i)
         limited = core.std.Expr([calm, sharpdiff], [limitexpr])
 
-    return core.std.ShufflePlanes([limited, clip], [0, 1, 2], color) if color in [vs.YUV, vs.YCOCG] else limited
+    return core.std.ShufflePlanes([limited, clip], [0, 1, 2], color) if color in [vs.YUV] else limited
 
 
 def Sharpen2(clip, sstr, power, zp, ldmp, hdmp, rg, mode, diff):
@@ -948,10 +939,8 @@ def Sharpen2(clip, sstr, power, zp, ldmp, hdmp, rg, mode, diff):
 
     if not isinstance(clip, vs.VideoNode):
         raise TypeError("Sharpen2: This is not a clip!")
-    if color == vs.COMPAT:
-        raise TypeError("Sharpen2: COMPAT color family is not supported!")
     
-    tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY) if color in [vs.YUV, vs.YCOCG] else clip
+    tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY) if color in [vs.YUV] else clip
 
     if rg <= 0:
         diff = False
@@ -979,7 +968,7 @@ def Sharpen2(clip, sstr, power, zp, ldmp, hdmp, rg, mode, diff):
         expr = 'x y = x dup {} dup {} / {} pow swap dup * dup {} + / * {} / {} * x y > 1 -1 ? * + ?'
         normsharp = core.std.Expr([tmp, method], [expr.format(xy, zp, 1/power, ldmp, Hi, zp*sstr*i)])
     
-    if color in [vs.YUV, vs.YCOCG]:
+    if color in [vs.YUV]:
         normsharp = core.std.ShufflePlanes([normsharp, clip], [0, 1, 2], color)
     
     return normsharp if not diff else core.std.MakeDiff(normsharp, clip) 
@@ -990,8 +979,6 @@ def SootheSS(sharp, src, sootheT=50, sootheS=0):
 
     if not isinstance(sharp, vs.VideoNode):
         raise TypeError("SootheSS: sharp must be a clip!")
-    if sharp.format.color_family == vs.COMPAT:
-        raise TypeError("Sharpen2: COMPAT color family is not supported!")
     if not isinstance(src, vs.VideoNode) or src.format.id != sharp.format.id:
         raise TypeError("SootheSS: src must be of the same format as sharp!") 
     if src.width != sharp.width or src.height != sharp.height:
@@ -1004,7 +991,7 @@ def SootheSS(sharp, src, sootheT=50, sootheS=0):
     isFLOAT = sharp.format.sample_type == vs.FLOAT
     mid = 0 if isFLOAT else 1 << (sharp.format.bits_per_sample - 1)
 
-    if color in [vs.YUV, vs.YCOCG]:
+    if color in [vs.YUV]:
         sharp = core.std.ShufflePlanes(sharp, [0], vs.GRAY)
         src = core.std.ShufflePlanes(src, [0], vs.GRAY)
 
@@ -1029,7 +1016,7 @@ def SootheSS(sharp, src, sootheT=50, sootheS=0):
 
     soothed = core.std.MakeDiff(src, soothed)
     
-    return core.std.ShufflePlanes([soothed, ssrc], [0, 1, 2], color) if color in [vs.YUV, vs.YCOCG] else soothed
+    return core.std.ShufflePlanes([soothed, ssrc], [0, 1, 2], color) if color in [vs.YUV] else soothed
 
 
 def QTGMC(clip, Preset='Slower', TR0=None, TR1=None, TR2=None, Rep0=None, Rep1=0, Rep2=None, EdiMode=None, RepChroma=True, NNSize=None, NNeurons=None, EdiQual=1, EdiMaxD=None, ChromaEdi='',
@@ -2903,15 +2890,13 @@ def NonlinUSM(clip, z=6.0, power=1.6, sstr=1, rad=9.0, ldmp=0.01, hdmp=0.01):
     
     if not isinstance(clip, vs.VideoNode):
         raise TypeError("NonlinUSM: This is not a clip!")
-    if color == vs.COMPAT:
-        raise TypeError("NonlinUSM: COMPAT color family is not supported!")
 
-    tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY) if color in [vs.YUV, vs.YCOCG] else clip
+    tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY) if color in [vs.YUV] else clip
     gauss = core.resize.Bicubic(tmp, m4(clip.width/rad), m4(clip.height/rad)).resize.Bicubic(clip.width, clip.height, filter_param_a=1, filter_param_b=0)
     expr = 'x y = x dup {} dup dup dup abs {} / {} pow swap3 dup * dup {} + / swap2 abs {} + / * * {} * + ?'
     tmp = core.std.Expr([tmp, gauss], [expr.format(xy, z, 1/power, ldmp, hdmp, sstr*z*i)])
 
-    return core.std.ShufflePlanes([tmp, clip], [0, 1, 2], color) if color in [vs.YUV, vs.YCOCG] else tmp
+    return core.std.ShufflePlanes([tmp, clip], [0, 1, 2], color) if color in [vs.YUV] else tmp
 
 
 def DetailSharpen(clip, z=4, sstr=1.5, power=4, ldmp=1, mode=1, med=False):
@@ -2941,10 +2926,8 @@ def DetailSharpen(clip, z=4, sstr=1.5, power=4, ldmp=1, mode=1, med=False):
     
     if not isinstance(clip, vs.VideoNode):
         raise TypeError("DetailSharpen: This is not a clip!")
-    if color == vs.COMPAT:
-        raise TypeError("DetailSharpen: COMPAT color family is not supported!")
 
-    tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY) if color in [vs.YUV, vs.YCOCG] else clip
+    tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY) if color in [vs.YUV] else clip
 
     if mode == 1:
         blur = core.std.Convolution(tmp, matrix=[1, 1, 1, 1, 1, 1, 1, 1, 1])
@@ -2956,7 +2939,7 @@ def DetailSharpen(clip, z=4, sstr=1.5, power=4, ldmp=1, mode=1, med=False):
     expr = 'x y = x dup {} dup dup abs {} / {} pow swap2 abs {} + / * {} * + ?'
     tmp = core.std.Expr([tmp, blur], [expr.format(xy, z, 1/power, ldmp, sstr*z*i)])
 
-    return core.std.ShufflePlanes([tmp, clip], [0, 1, 2], color) if color in [vs.YUV, vs.YCOCG] else tmp
+    return core.std.ShufflePlanes([tmp, clip], [0, 1, 2], color) if color in [vs.YUV] else tmp
     
 
 def Hysteria(clip, sstr=1.0, usemask=True, lthr=7, hthr=20, lcap=192, maxchg=255, minchg=0, showmask=False):
@@ -3005,8 +2988,8 @@ def Hysteria(clip, sstr=1.0, usemask=True, lthr=7, hthr=20, lcap=192, maxchg=255
     minchg = scale(minchg, peak)
     mat = [1, 2, 1, 2, 4, 2, 1, 2, 1]
 
-    if not isinstance(clip, vs.VideoNode) or color not in [vs.YUV, vs.YCOCG]:
-        raise ValueError("Hysteria: This is not a YUV or YCOCG clip!")
+    if not isinstance(clip, vs.VideoNode) or color not in [vs.YUV]:
+        raise ValueError("Hysteria: This is not a YUV clip!")
 
     tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY)
 
@@ -3132,10 +3115,8 @@ def EdgeDetect(clip, mode="kirsch", lthr=0, hthr=255, multi=1):
 
     if not isinstance(clip, vs.VideoNode):
         raise TypeError("EdgeDetect: This is not a clip!")
-    if clip.format.color_family == vs.COMPAT:
-        raise TypeError("EdgeDetect: COMPAT color family is not supported!")
 
-    if clip.format.color_family in [vs.YUV, vs.YCOCG]:
+    if clip.format.color_family in [vs.YUV]:
         clip = core.std.ShufflePlanes(clip, 0, vs.GRAY)
 
     bd = clip.format.bits_per_sample
@@ -3378,8 +3359,8 @@ def HQDeringmod(clip, p=None, ringmask=None, mrad=1, msmooth=1, incedge=False, m
 
     if not isinstance(clip, vs.VideoNode):
         raise TypeError("HQDeringmod: This is not a clip!")
-    if clip.format.color_family in [vs.RGB, vs.COMPAT]:
-        raise TypeError("HQDeringmod: RGB and COMPAT color family are not supported!")
+    if clip.format.color_family in [vs.RGB]:
+        raise TypeError("HQDeringmod: RGB color family is not supported!")
     if p is not None and (not isinstance(p, vs.VideoNode) or p.format.id != clip.format.id):
         raise TypeError("HQDeringmod: p must be the same format as clip!")
     if p is not None and (p.width != clip.width or p.height != clip.height):
@@ -3478,8 +3459,8 @@ def MaskedDHA(clip, rx=2, ry=2, darkstr=1, brightstr=1, lowsens=50, highsens=50,
     
     if not isinstance(clip, vs.VideoNode):
         raise TypeError("MaskedDHA: This is not a clip!")
-    if clip.format.color_family in [vs.RGB, vs.COMPAT]:
-        raise TypeError("MaskedDHA: RGB and COMPAT color family are not supported!")
+    if clip.format.color_family in [vs.RGB]:
+        raise TypeError("MaskedDHA: RGB color family is not supported!")
     
     w = clip.width
     h = clip.height
@@ -3500,7 +3481,7 @@ def MaskedDHA(clip, rx=2, ry=2, darkstr=1, brightstr=1, lowsens=50, highsens=50,
     maskpull = scale(maskpull, peak)
     maskpush = scale(maskpush, peak)
     r = 1.0 if isFLOAT else 1 << bd
-    tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY) if color in [vs.YUV, vs.YCOCG] else clip
+    tmp = core.std.ShufflePlanes(clip, [0], vs.GRAY) if color in [vs.YUV] else clip
     sm = core.resize.Bicubic(tmp, m4(w/rx), m4(h/ry))
     lg = sm.resize.Bicubic(w, h, filter_param_a=1, filter_param_b=0)
     chl = core.std.Expr([tmp.std.Maximum(), tmp.std.Minimum()], 'x y -')
@@ -3524,7 +3505,7 @@ def MaskedDHA(clip, rx=2, ry=2, darkstr=1, brightstr=1, lowsens=50, highsens=50,
     umfc = core.std.Expr([tmp, ssc], 'x y < x dup y - {} * - x dup y - {} * - ?'.format(darkstr, brightstr))
     mfc = core.std.MaskedMerge(tmp, umfc, mask_f)
 
-    return core.std.ShufflePlanes([mfc, clip], [0, 1, 2], color) if color in [vs.YUV, vs.YCOCG] else mfc
+    return core.std.ShufflePlanes([mfc, clip], [0, 1, 2], color) if color in [vs.YUV] else mfc
 
 
 def daamod(clip, mode=0, passes=1, sharp=True, mtype="", lthr=8, hthr=8, mpand=[1, 0], opencl=False, device=None, nsize=None, nns=None, qual=None, pscrn=None, exp=None):
@@ -3602,8 +3583,7 @@ def LUSM(clip, blur=1, thr=3.0, elast=4.0, brighthr=None):
         
     if not isinstance(clip, vs.VideoNode):
         raise TypeError("LUSM: This is not a clip!")
-    if clip.format.color_family == vs.COMPAT:
-        raise TypeError("LUSM: COMPAT color family is not supported!")
+
     if blur == 0:
         c2 = MinBlur(clip)
     elif blur == 1:
@@ -3615,7 +3595,7 @@ def LUSM(clip, blur=1, thr=3.0, elast=4.0, brighthr=None):
     else:
         raise TypeError("LUSM: blur must be 0-2 or a clip!")
     
-    sharp = core.std.Expr([clip, c2], ['x dup y - +', ''] if clip.format.color_family in [vs.YUV, vs.YCOCG] else ['x dup y - +'])
+    sharp = core.std.Expr([clip, c2], ['x dup y - +', ''] if clip.format.color_family in [vs.YUV] else ['x dup y - +'])
     
     return mvf.LimitFilter(sharp, clip, thr=thr, elast=elast, brighten_thr=brighthr)
 
@@ -3631,9 +3611,6 @@ def ContraSharpening(clip, src, radius=None, rep=13, planes=[0, 1, 2]):
 
     if not (isinstance(clip, vs.VideoNode) and isinstance(src, vs.VideoNode)):
         raise TypeError("ContraSharpening: This is not a clip")
-
-    if clip.format.color_family == vs.COMPAT:
-        raise TypeError("ContraSharpening: COMPAT color family is not supported!")
 
     if clip.format.id != src.format.id:
         raise TypeError("ContraSharpening: Both clips must have the same format")
@@ -3687,8 +3664,6 @@ def MinBlur(clip, rad=1, planes=[0, 1, 2]):
     if not isinstance(clip, vs.VideoNode):
         raise TypeError("MinBlur: This is not a clip")
 
-    if clip.format.color_family == vs.COMPAT:
-        raise TypeError("MinBlur: COMPAT color family is not supported!")
 
     if clip.format.num_planes == 1:
         planes = [0]
@@ -3723,9 +3698,6 @@ def sbr(clip, r=1, planes=[0, 1, 2]):
     
     if not isinstance(clip, vs.VideoNode):
         raise TypeError("sbr: This is not a clip")
-
-    if clip.format.color_family == vs.COMPAT:
-        raise TypeError("sbr: COMPAT color family is not supported!")
 
     if clip.format.num_planes == 1:
         planes = [0]
@@ -3768,9 +3740,6 @@ def DitherLumaRebuild(src, s0=2., c=0.0625, chroma=True):
 
     if not isinstance(src, vs.VideoNode):
         raise TypeError("DitherLumaRebuild: This is not a clip!")
-    
-    if src.format.color_family == vs.COMPAT:
-        raise TypeError("DitherLumaRebuild: COMPAT color family is not supported!")
 
     bd = src.format.bits_per_sample
     isFLOAT = src.format.sample_type == vs.FLOAT
@@ -3794,8 +3763,8 @@ def Tweak(clip, hue=None, sat=None, bright=None, cont=None, coring=True):
     isGRAY = clip.format.color_family == vs.GRAY
     mid = 0 if isFLOAT else 1 << (bd - 1)
 
-    if clip.format.color_family in [vs.RGB, vs.COMPAT]:
-        raise TypeError("Tweak: RGB and COMPAT color family are not supported!")
+    if clip.format.color_family in [vs.RGB]:
+        raise TypeError("Tweak: RGB color family is not supported!")
         
     if not (hue is None and sat is None or isGRAY):
         hue = 0.0 if hue is None else hue
