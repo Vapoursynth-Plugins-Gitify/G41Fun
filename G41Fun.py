@@ -182,8 +182,8 @@ def psharpen(clip, strength=25, threshold=75, ssx=1, ssy=1, dw=None, dh=None):
     mini = core.std.Minimum(tmp)
     
     # normalizing max and val to values from 0 to (max-min)
-    nmax = core.std.Expr([maxi, mini], ['x y -'])
-    nval = core.std.Expr([tmp,  mini], ['x y -'])
+    nmax = core.akarin.Expr([maxi, mini], ['x y -'])
+    nval = core.akarin.Expr([tmp,  mini], ['x y -'])
     
     # initializing expression used to obtain the output luma value
     s = strength / 100
@@ -193,10 +193,10 @@ def psharpen(clip, strength=25, threshold=75, ssx=1, ssy=1, dw=None, dh=None):
     expr = expr.format(st, s, s, t, t)
 
     # calculates the new luma value pushing it towards min or max
-    nval = core.std.Expr([nval, nmax], [expr])
+    nval = core.akarin.Expr([nval, nmax], [expr])
     
     # normalizing val to values from min to max
-    tmp = core.std.Expr([nval, mini], ['x y +'])
+    tmp = core.akarin.Expr([nval, mini], ['x y +'])
     
     # resizing the image to the output resolution
     # applying the new luma value to clip
