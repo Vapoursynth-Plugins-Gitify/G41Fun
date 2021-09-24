@@ -2025,7 +2025,7 @@ def SMDegrain(clip, tr=2, thSAD=314, thSADC=None, RefineMotion=False, contrashar
     elif prefilter == 3:
         expr = 'x {a} < {p} x {b} > 0 {p} x {a} - {p} {b} {a} - / * - ? ?'.format(a=16*i, b=75*i, p=peak)
         mask = core.std.Expr([core.std.ShufflePlanes(inpu, [0], vs.GRAY)], [expr])
-        pref = core.std.MaskedMerge(core.dfttest.DFTTest(inpu, tbsize=1, sstring='0.0:4.0 0.2:9.0 1.0:15.0', planes=planes), inpu, mask)
+        pref = core.std.MaskedMerge(core.dfttest.DFTTest(inpu, tbsize=1, slocation=[0.0,4.0, 0.2,9.0, 1.0,15.0], planes=planes), inpu, mask)
     elif prefilter == 4:
         pref = haf.KNLMeansCL(inpu, d=1, a=1, h=7) if chroma else inpu.knlm.KNLMeansCL(d=1, a=1, h=7)
     elif prefilter == 5:
@@ -3387,8 +3387,8 @@ def HQDeringmod(clip, p=None, ringmask=None, mrad=1, msmooth=1, incedge=False, m
     # Kernel: Smoothing
     if p is None:
         if nrmode == 0:
-            ss = "0.0:{s2} 0.05:{s} 0.5:{s} 0.75:{s2} 1.0:0.0".format(s=sigma, s2=sigma2)
-            p = core.dfttest.DFTTest(clip, sbsize=sbsize, sosize=sosize, tbsize=1, sstring=ss)
+            ss = [0.0,sigma2, 0.05,sigma, 0.5,sigma, 0.75,sigma2, 1.0,0.0]
+            p = core.dfttest.DFTTest(clip, sbsize=sbsize, sosize=sosize, tbsize=1, slocation=ss)
         else:
             p = MinBlur(clip, nrmode, planes)
 
